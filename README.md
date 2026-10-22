@@ -1,4 +1,4 @@
-# JRC–CaMa Interactive Viewer
+# JRC–CaMa Interactive Viewer (Scroll down for the Chinese and Japanese versions.)
 
 An interactive, read-only visualization of CaMa-Flood
 river links and JRC surface-water classifications.
