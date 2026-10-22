@@ -10,11 +10,10 @@ from pathlib import Path
 from flask import Flask, Response, abort, jsonify, render_template, send_file
 
 
-ROOT = Path(__file__).resolve().parents[3]
-RUN_LABEL = "water_ratio_0.05_min_conn_10_perennial_10_perennial_ratio_0.50"
-DB_PATH = ROOT / "Output" / "CamaJRCDownstreamLinks" / RUN_LABEL / "cama_2019_jrc_links_corridor_5km.sqlite"
-CLASSIFICATION_PATH = ROOT / "Output" / "CamaMainstemClassification" / "cama_mainstem_tributary_uparea_gt_10000km2.sqlite"
-JRC_PATH = ROOT / "Output" / "ChinaFlowStatusMosaic" / RUN_LABEL / f"china_flow_status_factor33_{RUN_LABEL}.png"
+HERE = Path(__file__).resolve().parent
+DB_PATH = HERE / "data" / "cama_links.sqlite"
+CLASSIFICATION_PATH = HERE / "data" / "mainstem.sqlite"
+JRC_PATH = HERE / "data" / "jrc.png"
 REFERENCE_CATCHMENT_ID = 5517354
 
 HERE = Path(__file__).resolve().parent
