@@ -33,6 +33,25 @@ Open the following URL in your browser:
 
 http://127.0.0.1:5008/
 
+## Updating an existing installation
+
+Stop the running viewer with `Ctrl+C`. In the cloned repository folder,
+use the same Python environment as before:
+
+```bash
+git pull --ff-only
+python -m pip install -r requirements.txt
+python app.py
+```
+
+Then hard-refresh the browser (`Ctrl+F5` on Windows/Linux,
+`Cmd+Shift+R` on macOS). Git updates code and tracked data together;
+there is no separate database migration command.
+If Git reports local changes or divergent history, keep your changes
+and resolve them before retrying; do not discard them blindly.
+ZIP users should download the latest ZIP into a new folder, install
+its requirements, and start that copy. Keep the old folder if needed.
+
 ## Features
 
 - Interactive river-link map
@@ -42,6 +61,10 @@ http://127.0.0.1:5008/
 - River channel geometry
 - Mainstem and tributary visualization
 - CSV export
+- Editable discharge thresholds and perennial-proportion charts
+- All-study / selected-basin comparison and normalization
+- Data / Charts tabs and sticky comparison tabs
+- Chinese, English, and Japanese interface switching
 
 ## Data
 
@@ -76,6 +99,9 @@ a separate database server.
 - **流量数据可视化**：查看 CaMa-Flood 模拟流量及相关统计信息。
 - **河流结构分析**：查看主干河流（Mainstem）与支流（Tributary）的分类信息。
 - **数据导出**：将指定河段的数据导出为 CSV 文件。
+- **常年比例图表**：自填绝对流量与标准化阈值，按全部研究点或所选流域比较。
+- **分层标签**：数据/图表及直接比较/标准化标签支持吸顶切换。
+- **语言切换**：界面支持中文、英文和日文，并记住选择。
 
 ### 3. 运行环境
 
@@ -114,6 +140,22 @@ http://127.0.0.1:5008/
 
 程序将在本地运行，无需连接外部数据库服务器。
 
+**更新已有安装**
+
+先在运行程序的终端按 `Ctrl+C` 停止服务。在克隆的仓库目录中，
+使用原来的 Python 环境执行：
+
+```bash
+git pull --ff-only
+python -m pip install -r requirements.txt
+python app.py
+```
+
+再强制刷新浏览器（Windows/Linux：`Ctrl+F5`；macOS：`Cmd+Shift+R`）。
+Git 会一起更新代码和受版本管理的数据，无需另行迁移数据库。
+如果 Git 提示本地修改或分支分歧，请先保留并处理自己的改动，不要直接丢弃。
+ZIP 用户请重新下载最新版，解压到新目录，安装依赖并启动；可保留旧目录。
+
 ### 5. 项目结构
 
 ```text
@@ -127,6 +169,9 @@ JRC-Cama-Viewer/
 │   └── jrc.png            # JRC 水域分类背景图
 ├── static/
 │   ├── app.js             # 前端交互逻辑
+│   ├── analysis.js        # 流量与常年比例图表
+│   ├── i18n.js            # 中英日语言切换
+│   ├── sidebar.js         # 侧栏标签与吸顶逻辑
 │   └── style.css          # 页面样式
 └── templates/
     └── index.html         # 网页模板
@@ -169,6 +214,9 @@ JRC-Cama-Viewer/
 - **流量データの可視化**：CaMa-Flood によるシミュレーション流量と関連統計情報を確認できます。
 - **河川構造の分析**：本川（Mainstem）と支川（Tributary）の分類情報を確認できます。
 - **データのエクスポート**：対象河川のデータを CSV 形式で出力できます。
+- **恒常流割合のグラフ**：絶対流量・正規化閾値を指定し、全研究地点または選択流域を比較できます。
+- **階層タブ**：データ/グラフと直接比較/正規化を固定タブで切り替えられます。
+- **言語切り替え**：中国語・英語・日本語に対応し、選択を記憶します。
 
 ### 3. 動作環境
 
@@ -207,6 +255,24 @@ http://127.0.0.1:5008/
 
 アプリケーションはローカル環境で動作し、外部データベースサーバーへの接続は不要です。
 
+**既存環境の更新**
+
+実行中のターミナルで `Ctrl+C` を押して停止します。クローンした
+リポジトリで、従来と同じ Python 環境を使って実行します。
+
+```bash
+git pull --ff-only
+python -m pip install -r requirements.txt
+python app.py
+```
+
+ブラウザを強制再読み込みします（Windows/Linux：`Ctrl+F5`、
+macOS：`Cmd+Shift+R`）。Gitでコードと管理対象データが同時に更新され、
+別途データベース移行コマンドは不要です。ローカル変更や履歴の分岐が
+報告された場合は、変更を保持して解決してから再試行してください。
+ZIPの場合は最新版を新しいフォルダに展開し、依存関係をインストールして
+起動してください。必要に応じて以前のフォルダを保持できます。
+
 ### 5. ディレクトリ構成
 
 ```text
@@ -220,6 +286,9 @@ JRC-Cama-Viewer/
 │   └── jrc.png            # JRC 水域分類背景画像
 ├── static/
 │   ├── app.js             # フロントエンド処理
+│   ├── analysis.js        # 流量・恒常流割合グラフ
+│   ├── i18n.js            # 中英日言語切り替え
+│   ├── sidebar.js         # タブと固定表示
 │   └── style.css          # スタイルシート
 └── templates/
     └── index.html         # HTML テンプレート
