@@ -5,8 +5,32 @@
   color: #253432;
   background: #f5f7f6;
 }
+#flow-analysis { border-bottom: 1px solid #d8e0dd; padding-bottom: 22px; margin-bottom: 22px; }
+.sidebar-tabs { display: flex; gap: 16px; position: sticky; top: 0; z-index: 4; background: #fff; padding: 8px 0 0; margin: 0 0 14px; border-bottom: 1px solid #e6ece9; }
+.sidebar-tabs button { flex: 0 0 auto; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: #71847e; padding: 6px 2px; font-size: 13px; line-height: 1.3; }
+.sidebar-tabs button[aria-selected="true"] { color: #176e5e; border-bottom-color: #176e5e; font-weight: 650; }
+.detail-panel [role="tabpanel"][hidden] { display: none; }
+.analysis-tabs { display: flex; gap: 14px; position: sticky; top: var(--sidebar-tabs-height, 32px); z-index: 3; background: #fff; margin-top: 16px; border-bottom: 1px solid #e6ece9; }
+.analysis-tabs button { padding: 5px 1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #71847e; font-size: 12px; }
+.analysis-tabs button[aria-selected="true"] { color: #176e5e; border-bottom-color: #176e5e; font-weight: 650; }
+#analysis-controls { display: grid; gap: 10px; margin: 14px 0; }
+.analysis-notes { margin: 8px 0; padding-left: 18px; line-height: 1.55; }
+.analysis-notes li + li { margin-top: 5px; }
+.analysis-summary { margin: 14px 0; padding: 8px 12px; background: #f5f8f6; border-left: 2px solid #cbd7d2; }
+.analysis-summary .analysis-notes { margin: 0; }
+#analysis-controls label { display: grid; gap: 5px; font-size: 12px; color: #435b55; }
+#analysis-controls input { width: 100%; padding: 8px; border: 1px solid #b7c6c1; border-radius: 4px; }
+#analysis-controls button { padding: 8px; background: #176e5e; color: white; border: 0; border-radius: 4px; }
+.proportion-card { margin-top: 18px; padding: 10px 0; border-top: 1px solid #dce5e1; }
+.proportion-card h3 { font-size: 14px; margin: 0 0 8px; }
+.proportion-card svg { width: 100%; height: auto; display: block; }
+.proportion-card details { margin-top: 8px; font-size: 12px; }
+.proportion-card summary { cursor: pointer; }
 * { box-sizing: border-box; }
 body { margin: 0; }
+.language-switch { display: flex; gap: 2px; margin-left: auto; flex-shrink: 0; }
+.language-switch button { padding: 4px 7px; border: 0; border-radius: 3px; background: transparent; color: #71847e; font-size: 12px; white-space: nowrap; }
+.language-switch button[aria-pressed="true"] { color: #176e5e; background: #e8f3ef; font-weight: 650; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 .app { min-height: 100vh; display: flex; flex-direction: column; }
@@ -128,7 +152,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 #map-count { white-space: normal; text-align: right; }
 .detail-panel {
   min-width: 0; border-left: 1px solid #d8e0dd; background: #fff;
-  padding: 20px 22px 28px; overflow-y: auto; max-height: calc(100vh - 95px);
+  padding: 0 22px 28px; overflow-y: auto; max-height: calc(100vh - 95px);
 }
 .detail-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
 .eyebrow { color: #71847e; font-size: 11px; font-weight: 700; }
@@ -180,10 +204,13 @@ td:last-child, th:last-child { text-align: right; }
 .monthly-wrap th, .monthly-wrap td { padding: 6px 7px; }
 .source-line { min-height: 28px; padding: 5px 16px; background: #edf2ef; color: #5d716a; font-size: 11px; line-height: 1.5; border-top: 1px solid #dce4df; }
 @media (max-width: 900px) {
+  .workspace > * { width: 100%; max-width: 100%; }
+  #analysis-controls { min-width: 0; }
+  #analysis-controls input { min-width: 0; }
   .topbar { height: auto; flex: 0 0 auto; min-height: 64px; padding: 10px 14px; flex-wrap: wrap; }
   .workspace { display: flex; flex-direction: column; }
   #map-wrap { height: min(55vh, 520px); flex: none; min-height: 340px; }
-  .detail-panel { max-height: none; border-left: 0; border-top: 1px solid #d8e0dd; padding: 18px 16px; }
+  .detail-panel { max-height: none; border-left: 0; border-top: 1px solid #d8e0dd; padding: 0 16px 18px; }
   .map-footer { align-items: flex-start; }
 }
 @media (max-width: 540px) {

@@ -501,7 +501,7 @@ function renderChart() {
 async function selectLink(id, jump = false) {
   const overviewLink = state.byId.get(id);
   if (!overviewLink) {
-    $("catchment-search").setCustomValidity("Catchment ID not found");
+    $("catchment-search").setCustomValidity(window.viewerI18n.translate("Catchment ID not found"));
     $("catchment-search").reportValidity();
     return;
   }
@@ -530,10 +530,10 @@ async function init() {
       `<option value="${basin.basin_id}">${basin.display_name} (${number.format(basin.catchment_count)})</option>`
     ).join(""));
     renderBasinStatistics(
-      state.basins.reduce((sum, basin) => sum + basin.catchment_count, 0),
-      state.basins.reduce((sum, basin) => sum + basin.perennial_count, 0),
-      state.basins.reduce((sum, basin) => sum + basin.nonperennial_count, 0),
-      state.basins.reduce((sum, basin) => sum + basin.unresolved_count, 0),
+      state.links.length,
+      state.links.filter(link => link.jrc_status === 2).length,
+      state.links.filter(link => link.jrc_status === 1).length,
+      state.links.filter(link => ![1, 2].includes(link.jrc_status)).length,
     );
     const green = state.links.filter((link) => link.jrc_status === 2).length;
     const red = state.links.filter((link) => link.jrc_status === 1).length;
@@ -568,13 +568,14 @@ function setBasinFocus(value, fit = true) {
   state.selectedBasinId = value === "" ? null : Number(value);
   $("basin-select").value = value;
   $("clear-basin").disabled = state.selectedBasinId == null;
+  document.dispatchEvent(new Event('basin-focus-changed'));
   const basin = selectedBasin();
   if (!basin) {
     renderBasinStatistics(
-      state.basins.reduce((sum, item) => sum + item.catchment_count, 0),
-      state.basins.reduce((sum, item) => sum + item.perennial_count, 0),
-      state.basins.reduce((sum, item) => sum + item.nonperennial_count, 0),
-      state.basins.reduce((sum, item) => sum + item.unresolved_count, 0),
+      state.links.length,
+      state.links.filter(link => link.jrc_status === 2).length,
+      state.links.filter(link => link.jrc_status === 1).length,
+      state.links.filter(link => ![1, 2].includes(link.jrc_status)).length,
     );
     if (fit) fitAll(); else queueRender();
     return;
@@ -652,14 +653,14 @@ $("draw-save").addEventListener("click", () => {
   exportCtx.fillRect(0, canvas.height, output.width, footerHeight);
   exportCtx.fillStyle = "#253432";
   exportCtx.font = `${12 * dpr}px Segoe UI, sans-serif`;
-  exportCtx.fillText(`CaMa-Flood / JRC direct links${state.selectedId ? ` | Catchment ${state.selectedId}` : ""}`, 12 * dpr, canvas.height + 20 * dpr);
+  exportCtx.fillText(window.viewerI18n.translate(`CaMa-Flood / JRC direct links${state.selectedId ? ` | Catchment ${state.selectedId}` : ""}`), 12 * dpr, canvas.height + 20 * dpr);
   exportCtx.font = `${11 * dpr}px Segoe UI, sans-serif`;
   [["#118069", "Perennial"], ["#d34f45", "Non-perennial"], ["#8f9293", "Unresolved"]].forEach(([color, label], index) => {
     const x = (12 + index * 110) * dpr;
     exportCtx.fillStyle = color;
     exportCtx.fillRect(x, canvas.height + 39 * dpr, 17 * dpr, 3 * dpr);
     exportCtx.fillStyle = "#52655e";
-    exportCtx.fillText(label, x + 23 * dpr, canvas.height + 44 * dpr);
+    exportCtx.fillText(window.viewerI18n.translate(label), x + 23 * dpr, canvas.height + 44 * dpr);
   });
   output.toBlob((blob) => {
     if (!blob) return;

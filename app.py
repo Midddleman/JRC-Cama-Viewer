@@ -3,11 +3,13 @@
 import csv
 import io
 import json
+import math
 import sqlite3
+from functools import lru_cache
 from contextlib import closing
 from pathlib import Path
 
-from flask import Flask, Response, abort, jsonify, render_template, send_file
+from flask import Flask, Response, abort, jsonify, render_template, send_file, request
 
 
 HERE = Path(__file__).resolve().parent
@@ -159,6 +161,130 @@ def catchment_csv(catchment_id):
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=cama_{catchment_id}_jrc_link.csv"},
     )
+
+
+FLOW_EDGES = [-math.inf, 0, .01, .1, 1, 10, 100, 1000, 10000, math.inf]
+FLOW_LABELS = ["<0", "0–0.01", "0.01–0.1", "0.1–1", "1–10", "10–100",
+               "100–1k", "1k–10k", "≥10k"]
+
+
+@lru_cache(maxsize=1)
+def analysis_records(path, modified):
+    """Cache source rows, invalidated when the SQLite file changes."""
+    with closing(database()) as connection:
+        rows = connection.execute("""
+            SELECT l.catchment_id, l.jrc_status, b.basin_id, f.month,
+                   f.mean_flow_cms, f.valid_days, f.days_in_month
+            FROM catchment_links l
+            LEFT JOIN catchment_major_basins b USING (catchment_id)
+            LEFT JOIN monthly_flow_stats f ON f.catchment_id=l.catchment_id AND f.year=2019
+            ORDER BY l.catchment_id, f.month
+        """)
+        grouped = {}
+        for row in rows:
+            record = grouped.setdefault(row['catchment_id'], {
+                'status': row['jrc_status'], 'basin': row['basin_id'], 'months': []})
+            record['months'].append((row['month'], row['mean_flow_cms'],
+                                     row['valid_days'], row['days_in_month']))
+    valid = []
+    for record in grouped.values():
+        months = record['months']
+        if (len(months) != 12 or {m[0] for m in months} != set(range(1, 13))
+                or any(m[1] is None or not math.isfinite(m[1]) or m[2] != m[3]
+                       or not m[2] for m in months)):
+            continue
+        record['annual'] = sum(m[1]*m[2] for m in months)/sum(m[2] for m in months)
+        record['months'] = [m[1] for m in months]
+        valid.append(record)
+    return valid, len(grouped)-len(valid)
+
+
+def proportion_bins(records, labels, group):
+    bins = [dict(label=label, total=0, perennial=0, nonperennial=0, unresolved=0)
+            for label in labels]
+    for record in records:
+        item = bins[group(record)]
+        item['total'] += 1
+        key = {2: 'perennial', 1: 'nonperennial'}.get(record['status'], 'unresolved')
+        item[key] += 1
+    for item in bins:
+        n = item['perennial'] + item['nonperennial']
+        item['known'] = n
+        item['percent'] = 100*item['perennial']/n if n else None
+        # Wilson 95% interval exposes uncertainty in small groups.
+        if n:
+            p, z = item['perennial']/n, 1.959963984540054
+            center = (p+z*z/(2*n))/(1+z*z/n)
+            half = z*math.sqrt(p*(1-p)/n+z*z/(4*n*n))/(1+z*z/n)
+            item['low'], item['high'] = 100*(center-half), 100*(center+half)
+        else:
+            item['low'] = item['high'] = None
+    return bins
+
+
+def flow_analysis(records, absolute, normalized, basin=None):
+    selected = records if basin is None else [r for r in records if r['basin'] == basin]
+    national_mean = sum(r['annual'] for r in records)/len(records) if records else None
+    basin_groups = {}
+    for record in records:
+        if record['basin'] is not None:
+            basin_groups.setdefault(record['basin'], []).append(record['annual'])
+    basin_means = {key: sum(values)/len(values) for key, values in basin_groups.items()}
+    charts = []
+    def add_months(title, threshold, population, reference=None, normalization=None):
+        charts.append(dict(title=title, threshold_cms=threshold, reference_mean_cms=reference,
+                           excluded=len(selected)-len(population), kind='months',
+                           normalization=normalization,
+                           bins=proportion_bins(population, [str(i) for i in range(13)],
+                               lambda r: sum(q > (threshold(r) if callable(threshold) else threshold)
+                                             for q in r['months']))))
+        # Do not serialize the per-basin threshold function.
+        if callable(threshold):
+            charts[-1]['threshold_cms'] = None
+    charts.append(dict(title='Annual mean discharge (m³/s)', kind='flow', excluded=0, normalization=None,
+        bins=proportion_bins(selected, FLOW_LABELS,
+            lambda r: next(i for i in range(len(FLOW_LABELS))
+                           if FLOW_EDGES[i] <= r['annual'] < FLOW_EDGES[i+1]))))
+    for threshold in absolute:
+        add_months(f'Q > {threshold:g} m³/s', threshold, selected)
+    for coefficient in normalized:
+        eligible = selected if national_mean is not None and national_mean > 0 else []
+        add_months(f'Q / study-wide mean > {coefficient:g}',
+                   coefficient*national_mean if eligible else None, eligible, national_mean,
+                   normalization='study')
+        eligible = [r for r in selected if basin_means.get(r['basin'], 0) > 0]
+        add_months(f'Q / basin mean > {coefficient:g}',
+                   lambda r: coefficient*basin_means[r['basin']], eligible,
+                   basin_means.get(basin), normalization='basin')
+    return dict(charts=charts, catchments=len(selected), national_mean_cms=national_mean,
+                basin_mean_cms=basin_means.get(basin),
+                unresolved=sum(r['status'] not in (1, 2) for r in selected))
+
+
+@app.get('/api/flow-analysis')
+def flow_analysis_api():
+    def thresholds(name, default):
+        try:
+            values = sorted(set(float(v.strip()) for v in request.args.get(name, default).split(',')))
+            if not 1 <= len(values) <= 8 or any(not math.isfinite(v) or v < 0 for v in values):
+                raise ValueError
+            return values
+        except ValueError:
+            abort(400, description=f'{name}: enter 1–8 finite nonnegative numbers separated by commas')
+    absolute = thresholds('absolute', '0.01,0.1,1,10')
+    normalized = thresholds('normalized', '0.01,0.1,0.5')
+    try:
+        basin = int(request.args['basin']) if request.args.get('basin') else None
+    except ValueError:
+        abort(400, description='Invalid basin ID')
+    if basin is not None:
+        with closing(database()) as connection:
+            if not connection.execute('SELECT 1 FROM major_river_basins WHERE basin_id=?', (basin,)).fetchone():
+                abort(404, description='Unknown basin')
+    records, incomplete = analysis_records(str(DB_PATH), DB_PATH.stat().st_mtime_ns)
+    result = flow_analysis(records, absolute, normalized, basin)
+    result['incomplete_national'] = incomplete
+    return jsonify(result)
 
 
 @app.get("/health")
