@@ -539,8 +539,8 @@ async function init() {
     const red = state.links.filter((link) => link.jrc_status === 1).length;
     $("map-count").textContent = `${number.format(green)} perennial | ${number.format(red)} non-perennial | ${number.format(state.links.length - green - red)} unresolved`;
     $("map-loading").hidden = true;
-    const first = state.links.find((link) => link.jrc_status === 2) || state.links[0];
-    if (first) await selectLink(first.catchment_id);
+    const initial = state.links[Math.floor(Math.random() * state.links.length)];
+    if (initial) await selectLink(initial.catchment_id);
     fitAll();
   } catch (error) {
     $("map-loading").textContent = error.message;
