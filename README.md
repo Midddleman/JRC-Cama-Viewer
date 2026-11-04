@@ -55,8 +55,10 @@ its requirements, and start that copy. Keep the old folder if needed.
 ## Features
 
 - Interactive river-link map
+- Adaptive coordinate grid spacing to keep labels readable when zooming
 - JRC perennial and non-perennial classification
 - Catchment search and selection
+- Repeated map selection tolerates small pointer movements and recovers after interrupted gestures
 - Monthly CaMa-Flood discharge statistics
 - River channel geometry
 - Mainstem and tributary visualization
@@ -65,6 +67,9 @@ its requirements, and start that copy. Keep the old folder if needed.
 - All-study / selected-basin comparison and normalization
 - Data / Charts tabs and sticky comparison tabs
 - Chinese, English, and Japanese interface switching
+- Collapsible drawing tools: click the pen beside the basin selector
+- Collapsible legend and counts: click Legend at the map's bottom-left
+- Click the JRC raster text to adjust opacity; its checkbox toggles the layer
 
 ## Data
 
@@ -95,13 +100,18 @@ a separate database server.
 ### 2. 主要功能
 
 - **交互式地图**：显示研究区域的河流及 JRC 水域分类背景图。
+- **坐标网格**：随缩放自适应调整标签间距，避免重叠。
 - **河段查询**：通过 Catchment ID 查询特定河段。
+- **连续选点**：地图点击容忍轻微手部移动，中断拖动后也可恢复选点。
 - **流量数据可视化**：查看 CaMa-Flood 模拟流量及相关统计信息。
 - **河流结构分析**：查看主干河流（Mainstem）与支流（Tributary）的分类信息。
 - **数据导出**：将指定河段的数据导出为 CSV 文件。
 - **常年比例图表**：自填绝对流量与标准化阈值，按全部研究点或所选流域比较。
 - **分层标签**：数据/图表及直接比较/标准化标签支持吸顶切换。
 - **语言切换**：界面支持中文、英文和日文，并记住选择。
+- **折叠绘图工具**：点击流域下拉框右侧的笔图标展开工具栏；再次点击收起，保留笔迹并恢复平移。
+- **折叠图例**：点击地图左下角图例按钮，查看图例和分类数量，再次点击收起。
+- **JRC透明度**：点击JRC栅格文字展开透明度；勾选框单独控制图层显示。
 
 ### 3. 运行环境
 
@@ -210,13 +220,18 @@ JRC-Cama-Viewer/
 ### 2. 主な機能
 
 - **インタラクティブマップ**：対象地域の河川と JRC 水域分類の背景画像を表示します。
+- **座標グリッド**：ズームに応じてラベル間隔を調整し、重なりを防ぎます。
 - **河川流域の検索**：Catchment ID を指定して対象河川を検索できます。
+- **連続地点選択**：クリック時の微小な移動を許容し、操作中断後も選択を再開できます。
 - **流量データの可視化**：CaMa-Flood によるシミュレーション流量と関連統計情報を確認できます。
 - **河川構造の分析**：本川（Mainstem）と支川（Tributary）の分類情報を確認できます。
 - **データのエクスポート**：対象河川のデータを CSV 形式で出力できます。
 - **恒常流割合のグラフ**：絶対流量・正規化閾値を指定し、全研究地点または選択流域を比較できます。
 - **階層タブ**：データ/グラフと直接比較/正規化を固定タブで切り替えられます。
 - **言語切り替え**：中国語・英語・日本語に対応し、選択を記憶します。
+- **折りたたみ描画ツール**：流域選択の右のペンで開閉できます。閉じると描画を保持して移動モードに戻ります。
+- **折りたたみ凡例**：地図左下の凡例ボタンで、凡例と分類件数を開閉できます。
+- **JRC不透明度**：JRCラスターの文字で不透明度を調整し、チェックボックスでレイヤー表示を切り替えます。
 
 ### 3. 動作環境
 

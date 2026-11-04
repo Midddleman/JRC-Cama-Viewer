@@ -26,11 +26,16 @@
       <section class="map-panel" aria-label="CaMa downstream link map">
         <div class="map-toolbar">
           <div class="layer-controls" role="group" aria-label="Map layers">
-            <label><input id="layer-jrc" type="checkbox" checked> JRC raster</label>
-            <label class="opacity-control" for="jrc-opacity">Opacity
-              <input id="jrc-opacity" type="range" min="0" max="100" step="5" value="100">
-              <output id="jrc-opacity-value" for="jrc-opacity">100%</output>
-            </label>
+            <div class="jrc-layer-control">
+              <input id="layer-jrc" type="checkbox" checked aria-label="JRC raster">
+              <button id="jrc-opacity-toggle" type="button" aria-expanded="false" aria-controls="jrc-opacity-panel"><span>JRC raster</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
+              <div id="jrc-opacity-panel" hidden>
+                <label class="opacity-control" for="jrc-opacity">Opacity
+                  <input id="jrc-opacity" type="range" min="0" max="100" step="5" value="100">
+                  <output id="jrc-opacity-value" for="jrc-opacity">100%</output>
+                </label>
+              </div>
+            </div>
             <label><input id="layer-links" type="checkbox" checked> Links</label>
             <label><input id="layer-points" type="checkbox" checked> CaMa points</label>
             <label><input id="layer-basins" type="checkbox" checked> Basin boundaries</label>
@@ -39,11 +44,16 @@
         </div>
         <div class="basin-toolbar">
           <label for="basin-select">Major river basin</label>
-          <select id="basin-select"><option value="">All study points</option></select>
+          <div class="basin-selection">
+            <select id="basin-select"><option value="">All study points</option></select>
+            <button id="drawing-toggle" type="button" aria-label="Map drawing tools" title="Map drawing tools" aria-expanded="false" aria-controls="drawing-toolbar">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 5 3 3M4 20l4-.8L20 7.2 16.8 4 4.8 16z"/></svg>
+            </button>
+          </div>
           <span id="basin-focus-count" aria-live="polite">Loading basin statistics...</span>
           <button id="clear-basin" type="button" title="Clear basin focus" disabled>Clear focus</button>
         </div>
-        <div class="drawing-toolbar" role="toolbar" aria-label="Map drawing tools">
+        <div id="drawing-toolbar" class="drawing-toolbar" role="toolbar" aria-label="Map drawing tools" hidden>
           <div class="drawing-modes" role="group" aria-label="Map mode">
             <button id="mode-pan" type="button" aria-pressed="true" title="Pan map and select catchments">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 7.07 17 2.51-7.39L21 11.07z"/></svg><span>Pan</span>
@@ -73,17 +83,20 @@
             <button id="zoom-in" type="button" title="Zoom in">+</button>
             <button id="zoom-out" type="button" title="Zoom out">-</button>
           </div>
-        </div>
-        <div class="map-footer">
-          <div class="legend">
-            <span class="line perennial"></span>Perennial link
-            <span class="line intermittent"></span>Non-perennial link
-            <span class="line no-water"></span>Unresolved link
-            <span class="point perennial-point"></span>Perennial catchment
-            <span class="point nonperennial-point"></span>Non-perennial catchment
-            <span class="point unknown-point"></span>Unresolved catchment
+          <div class="map-legend">
+            <button id="legend-toggle" type="button" aria-expanded="false" aria-controls="map-legend-panel">Legend</button>
+            <div id="map-legend-panel" hidden>
+              <div class="legend">
+                <div><span class="line perennial"></span><span>Perennial link</span></div>
+                <div><span class="line intermittent"></span><span>Non-perennial link</span></div>
+                <div><span class="line no-water"></span><span>Unresolved link</span></div>
+                <div><span class="point perennial-point"></span><span>Perennial catchment</span></div>
+                <div><span class="point nonperennial-point"></span><span>Non-perennial catchment</span></div>
+                <div><span class="point unknown-point"></span><span>Unresolved catchment</span></div>
+              </div>
+              <div id="map-count"></div>
+            </div>
           </div>
-          <span id="map-count"></span>
         </div>
       </section>
 
@@ -141,9 +154,6 @@
 
         <div class="section-head"><h2>CaMa channel geometry</h2></div>
         <div id="channel-facts" class="facts"></div>
-        <svg id="channel-section" viewBox="0 0 420 200" role="img" aria-label="Schematic CaMa channel cross-section"></svg>
-        <p id="channel-reference" class="section-note"></p>
-        <p class="section-note">Comparative schematic, not true aspect ratio. Depth uses CaMa's static river_height (bank-height) parameter, not measured bathymetry or daily water depth. Longitudinal slope is derived from CaMa catchment elevations and model channel length, not surveyed bed gradient.</p>
 
         <div class="section-head chart-head"><h2>Monthly flow, 2019</h2>
           <label class="metric-label" for="metric-select">Statistic
@@ -169,7 +179,6 @@
         </div>
       </aside>
     </main>
-    <footer class="source-line">CaMa upstream area &gt;10,000 km2 | direct downstream links | 5 km corridor half-width | JRC long-term status | CaMa monthly flow for 2019</footer>
   </div>
   <script src="/static/i18n.js" defer></script>
   <script src="/static/app.js" defer></script>

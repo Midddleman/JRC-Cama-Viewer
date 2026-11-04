@@ -5,7 +5,7 @@ const hitCanvas = document.createElement("canvas");
 const hitCtx = hitCanvas.getContext("2d", { willReadFrequently: true });
 const state = {
   links: [], byId: new Map(), selectedId: null, detail: null,
-  basins: [], basinById: new Map(), selectedBasinId: null, channelReference: null,
+  basins: [], basinById: new Map(), selectedBasinId: null,
   streamFocus: null,
   centerLon: 105, centerLat: 35, scale: 10, width: 0, height: 0,
   pointer: null, dragged: false, renderQueued: false,
@@ -55,24 +55,48 @@ function idColor(id) {
 function colorId(data) {
   return data[0] + data[1] * 256 + data[2] * 65536;
 }
+function gridStep(minPixels) {
+  const degrees = minPixels / state.scale;
+  const magnitude = 10 ** Math.floor(Math.log10(degrees));
+  return [1, 2, 5, 10].find(value => value * magnitude >= degrees) * magnitude;
+}
+function coordinateLabel(value, longitude) {
+  const rounded = Number(value.toFixed(4));
+  const direction = longitude ? (rounded < 0 ? "W" : "E") : (rounded < 0 ? "S" : "N");
+  return `${Math.abs(rounded)}°${direction}`;
+}
 function drawGrid() {
-  const step = state.scale < 15 ? 10 : state.scale < 40 ? 5 : state.scale < 130 ? 1 : 0.2;
+  ctx.save();
   ctx.strokeStyle = "rgba(63,82,82,.12)";
   ctx.fillStyle = "#6b7777";
   ctx.font = "12px system-ui";
   ctx.lineWidth = 1;
   const [left, top] = toGeo(0, 0);
   const [right, bottom] = toGeo(state.width, state.height);
-  for (let lon = Math.ceil(left / step) * step; lon <= right; lon += step) {
+  // Spacing is measured in screen pixels, including at the widest zoom level.
+  const lonStep = gridStep(Math.max(80, ctx.measureText("180.05°W").width + 24));
+  const latStep = gridStep(55);
+  ctx.textAlign = "center";
+  for (let tick = Math.ceil(Math.max(left, -180) / lonStep);
+       tick * lonStep <= Math.min(right, 180); tick++) {
+    const lon = tick * lonStep;
     const x = toScreen(lon, 0)[0];
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, state.height); ctx.stroke();
-    ctx.fillText(`${Math.round(lon * 10) / 10}E`, x + 4, state.height - 10);
+    const label = coordinateLabel(lon, true);
+    const halfWidth = ctx.measureText(label).width / 2;
+    if (x - halfWidth >= 58 && x + halfWidth <= state.width - 4) {
+      ctx.fillText(label, x, state.height - 10);
+    }
   }
-  for (let lat = Math.ceil(bottom / step) * step; lat <= top; lat += step) {
+  ctx.textAlign = "left";
+  for (let tick = Math.ceil(Math.max(bottom, -90) / latStep);
+       tick * latStep <= Math.min(top, 90); tick++) {
+    const lat = tick * latStep;
     const y = toScreen(0, lat)[1];
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(state.width, y); ctx.stroke();
-    ctx.fillText(`${Math.round(lat * 10) / 10}N`, 8, y - 5);
+    if (y >= 20 && y <= state.height - 30) ctx.fillText(coordinateLabel(lat, false), 8, y - 5);
   }
+  ctx.restore();
 }
 function drawLine(context, link) {
   if (link.downstream_longitude == null || link.downstream_latitude == null) return;
@@ -414,58 +438,6 @@ function renderChannel(channel) {
     fact("Derived channel slope", channel?.channel_slope_m_per_m == null ? "-" : `${format(channel.channel_slope_m_per_m * 1000, 3)} m/km (${format(channel.channel_slope_m_per_m * 100, 3)}%)`) +
     fact("Elevation drop", channel?.elevation_drop_m == null ? "-" : `${format(channel.elevation_drop_m, 2)} m`) +
     fact("Catchment elevation", channel?.catchment_elevation_m == null ? "-" : `${format(channel.catchment_elevation_m, 2)} m`);
-  const svg = $("channel-section");
-  svg.replaceChildren();
-  const reference = state.channelReference;
-  $("channel-reference").textContent = reference
-    ? `Dashed reference: catchment ${format(reference.catchment_id, 0)} (${format(reference.river_width_m, 2)} m wide, ${format(reference.river_height_m, 2)} m deep). Width and depth use fixed square-root scales, capped to fit.`
-    : "";
-  if (!(channel?.river_width_m > 0 && channel?.river_height_m > 0)) {
-    svg.appendChild(svgElement("text", { x: 210, y: 105, "text-anchor": "middle" }, "Channel geometry unavailable"));
-    return;
-  }
-  const top = 64;
-  const width = reference?.river_width_m > 0
-    ? Math.max(42, Math.min(312, 180 * Math.sqrt(channel.river_width_m / reference.river_width_m)))
-    : 180;
-  const depth = reference?.river_height_m > 0
-    ? Math.max(24, Math.min(120, 60 * Math.sqrt(channel.river_height_m / reference.river_height_m)))
-    : 60;
-  const left = 210 - width / 2;
-  const right = 210 + width / 2;
-  const bottom = top + depth;
-  svg.appendChild(svgElement("path", {
-    d: `M0 ${top} H${left} V${bottom} H${right} V${top} H420 V200 H0 Z`, fill: "#e0e7e1",
-  }));
-  svg.appendChild(svgElement("path", {
-    d: `M0 ${top} H${left} V${bottom} H${right} V${top} H420`, fill: "none", stroke: "#1a7967", "stroke-width": 2.5,
-  }));
-  if (reference?.river_width_m > 0 && reference?.river_height_m > 0) {
-    svg.appendChild(svgElement("path", {
-      d: `M120 ${top} V124 H300 V${top}`,
-      fill: "none", stroke: "#89958f", "stroke-width": 1.7, "stroke-dasharray": "5 4",
-    }));
-  }
-  svg.appendChild(svgElement("line", {
-    x1: left, y1: 40, x2: right, y2: 40, stroke: "#1a7967", "stroke-width": 1.5,
-  }));
-  svg.appendChild(svgElement("path", {
-    d: `M${left} 34 V49 M${right} 34 V49 M${left} 40 l8 -4 v8 Z M${right} 40 l-8 -4 v8 Z`,
-    fill: "#1a7967", stroke: "#1a7967", "stroke-width": 1,
-  }));
-  svg.appendChild(svgElement("text", { x: 210, y: 29, "text-anchor": "middle" },
-    `Width ${format(channel.river_width_m, 2)} m`));
-  svg.appendChild(svgElement("line", {
-    x1: right + 15, y1: top, x2: right + 15, y2: bottom, stroke: "#1a7967", "stroke-width": 1.5,
-  }));
-  svg.appendChild(svgElement("path", {
-    d: `M${right + 8} ${top} H${right + 22} M${right + 8} ${bottom} H${right + 22} M${right + 15} ${top} l-4 8 h8 Z M${right + 15} ${bottom} l-4 -8 h8 Z`,
-    fill: "#1a7967", stroke: "#1a7967", "stroke-width": 1,
-  }));
-  svg.appendChild(svgElement("text", {
-    x: right > 310 ? right - 9 : right + 29, y: top + depth / 2 + 4,
-    "text-anchor": right > 310 ? "end" : "start",
-  }, `${format(channel.river_height_m, 2)} m`));
 }
 function renderChart() {
   const svg = $("flow-chart");
@@ -524,7 +496,6 @@ async function init() {
     state.links = data.links;
     state.basins = data.basins;
     state.basinById = new Map(state.basins.map((basin) => [basin.basin_id, basin]));
-    state.channelReference = data.channel_reference;
     state.byId = new Map(state.links.map((link) => [link.catchment_id, link]));
     $("basin-select").insertAdjacentHTML("beforeend", state.basins.map((basin) =>
       `<option value="${basin.basin_id}">${basin.display_name} (${number.format(basin.catchment_count)})</option>`
@@ -563,6 +534,21 @@ for (const id of ["layer-jrc", "layer-links", "layer-points", "layer-basins"]) $
 $("jrc-opacity").addEventListener("input", (event) => {
   $("jrc-opacity-value").textContent = `${event.target.value}%`;
   queueRender();
+});
+function setOpacityPanelOpen(open) {
+  $("jrc-opacity-panel").hidden = !open;
+  $("jrc-opacity-toggle").setAttribute("aria-expanded", String(open));
+}
+$("jrc-opacity-toggle").addEventListener("click", () => {
+  setOpacityPanelOpen($("jrc-opacity-panel").hidden);
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!document.querySelector(".jrc-layer-control").contains(event.target)) setOpacityPanelOpen(false);
+});
+document.querySelector(".jrc-layer-control").addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  setOpacityPanelOpen(false);
+  $("jrc-opacity-toggle").focus();
 });
 function setBasinFocus(value, fit = true) {
   state.selectedBasinId = value === "" ? null : Number(value);
@@ -614,6 +600,33 @@ function updateDrawingActions() {
   $("draw-undo").disabled = empty;
   $("draw-clear").disabled = empty;
 }
+$("legend-toggle").addEventListener("click", () => {
+  const open = $("map-legend-panel").hidden;
+  $("map-legend-panel").hidden = !open;
+  $("legend-toggle").setAttribute("aria-expanded", String(open));
+});
+document.querySelector(".map-legend").addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  $("map-legend-panel").hidden = true;
+  $("legend-toggle").setAttribute("aria-expanded", "false");
+  $("legend-toggle").focus();
+});
+function setDrawingToolbarOpen(open) {
+  $("drawing-toolbar").hidden = !open;
+  $("drawing-toggle").setAttribute("aria-expanded", String(open));
+  if (!open) {
+    finishMapPointer();
+    setMapMode("pan");
+  }
+}
+$("drawing-toggle").addEventListener("click", () => {
+  setDrawingToolbarOpen($("drawing-toolbar").hidden);
+});
+$("drawing-toolbar").addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  setDrawingToolbarOpen(false);
+  $("drawing-toggle").focus();
+});
 $("mode-pan").addEventListener("click", () => setMapMode("pan"));
 $("mode-draw").addEventListener("click", () => setMapMode("draw"));
 for (const swatch of document.querySelectorAll(".pen-swatch")) {
@@ -678,11 +691,12 @@ canvas.addEventListener("wheel", (event) => {
   zoomAt(event.deltaY < 0 ? 1.2 : 1 / 1.2, event.clientX - rect.left, event.clientY - rect.top);
 }, { passive: false });
 canvas.addEventListener("pointerdown", (event) => {
-  if (state.pointer) return;
+  if (state.pointer || event.button !== 0) return;
   canvas.setPointerCapture(event.pointerId);
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left, y = event.clientY - rect.top;
-  state.pointer = { x: event.clientX, y: event.clientY, mode: state.mapMode };
+  state.pointer = { x: event.clientX, y: event.clientY, startX: event.clientX,
+    startY: event.clientY, pointerId: event.pointerId, mode: state.mapMode };
   state.dragged = false;
   if (state.mapMode === "draw") {
     state.strokes.push({ color: state.penColor, width: state.penWidth, points: [toGeo(x, y)] });
@@ -695,19 +709,24 @@ canvas.addEventListener("pointermove", (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left, y = event.clientY - rect.top;
   if (state.pointer) {
+    if (event.pointerId !== state.pointer.pointerId) return;
     const dx = event.clientX - state.pointer.x, dy = event.clientY - state.pointer.y;
     if (state.pointer.mode === "draw") {
       if (Math.abs(dx) + Math.abs(dy) >= 1) {
         state.strokes[state.strokes.length - 1].points.push(toGeo(x, y));
-        state.pointer = { x: event.clientX, y: event.clientY, mode: "draw" };
+        state.pointer.x = event.clientX;
+        state.pointer.y = event.clientY;
         queueRender();
       }
       return;
     }
-    if (Math.abs(dx) + Math.abs(dy) > 2) state.dragged = true;
+    if (!state.dragged && Math.hypot(event.clientX - state.pointer.startX,
+      event.clientY - state.pointer.startY) <= 4) return;
+    state.dragged = true;
     state.centerLon -= dx / state.scale;
     state.centerLat += dy / state.scale;
-    state.pointer = { x: event.clientX, y: event.clientY };
+    state.pointer.x = event.clientX;
+    state.pointer.y = event.clientY;
     $("map-tooltip").hidden = true;
     queueRender();
     return;
@@ -727,15 +746,25 @@ canvas.addEventListener("pointermove", (event) => {
     tooltip.style.top = `${Math.max(y - 28, 8)}px`;
   }
 });
+function finishMapPointer(pointerId = state.pointer?.pointerId) {
+  if (!state.pointer || pointerId !== state.pointer.pointerId) return null;
+  const pointer = state.pointer;
+  state.pointer = null;
+  if (canvas.hasPointerCapture(pointer.pointerId)) canvas.releasePointerCapture(pointer.pointerId);
+  return pointer;
+}
 canvas.addEventListener("pointerup", (event) => {
-  if (state.pointer?.mode === "pan" && !state.dragged) {
+  const pointer = finishMapPointer(event.pointerId);
+  if (pointer?.mode === "pan" && !state.dragged &&
+      Math.hypot(event.clientX - pointer.startX, event.clientY - pointer.startY) <= 4) {
     const rect = canvas.getBoundingClientRect();
     const hit = hitAt(event.clientX - rect.left, event.clientY - rect.top);
     if (hit) selectLink(hit.catchment_id).catch(console.error);
   }
-  state.pointer = null;
 });
-canvas.addEventListener("pointercancel", () => { state.pointer = null; });
+canvas.addEventListener("pointercancel", (event) => finishMapPointer(event.pointerId));
+canvas.addEventListener("lostpointercapture", (event) => finishMapPointer(event.pointerId));
+window.addEventListener("blur", () => finishMapPointer());
 canvas.addEventListener("pointerleave", () => { $("map-tooltip").hidden = true; });
 new ResizeObserver(resize).observe($("map-wrap"));
 init();
