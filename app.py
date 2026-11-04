@@ -272,7 +272,7 @@ def flow_analysis_api():
         except ValueError:
             abort(400, description=f'{name}: enter 1–8 finite nonnegative numbers separated by commas')
     absolute = thresholds('absolute', '0.01,0.1,1,10')
-    normalized = thresholds('normalized', '0.01,0.1,0.5')
+    normalized = thresholds('normalized', '0.01,0.1,0.5,1')
     try:
         basin = int(request.args['basin']) if request.args.get('basin') else None
     except ValueError:
