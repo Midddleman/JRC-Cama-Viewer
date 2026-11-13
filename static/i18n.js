@@ -3,6 +3,19 @@
 (() => {
   const languages = ['en', 'zh', 'ja'];
   const phrases = [
+    ['Normalized (per point)', '逐点标准化', '地点別の正規化'],
+    ['Normalized (study / basin)', '总体标准化（全范围／流域）', '全体／流域の正規化'],
+    ['Per-point reference: the arithmetic mean of each point\'s own 12 monthly means, with equal weight for each month.', '逐点分母：本点 12 个月月平均流量的算术平均，每个月等权。', '地点別の分母：その地点の12か月の月平均流量の算術平均。各月は等重みです。'],
+    ['Population reference: study-wide or selected-basin average of day-weighted annual means. Nonpositive references are excluded in both modes.', '总体分母：全范围或所选流域内，各点按日数加权年平均流量的算术平均。两种标准化均排除非正分母。', '全体の分母：全研究地点または選択流域の日数加重年平均流量の地点間平均。どちらの方法も非正の分母を除外します。'],
+    ["Per-point normalization: each monthly mean Q is divided by that point's own arithmetic mean of 12 monthly means. Months have equal weight; ratios are dimensionless. Nonpositive own means are excluded.", '逐点标准化：各月平均 Q 除以本点 12 个月月均流量的算术平均。月份等权，比值无量纲；自身均值非正的点不参与。', '地点別の正規化：各月の平均Qを、その地点の12か月の月平均Qの算術平均で割ります。月は等重み、比は無次元です。自身の平均が非正の地点は除外します。'],
+    ['Population normalization: divide monthly Q by the study-wide mean, or by the selected basin mean. These reference means average day-weighted annual discharge across points.', '总体标准化：月平均 Q 除以全研究范围均值，或所选流域均值。参考均值为各点按日数加权年平均流量的算术平均。', '全体の正規化：月平均Qを全研究地点の平均または選択流域の平均で割ります。分母は日数加重年平均流量の地点間平均です。'],
+    ['Complete-flow points', '完整流量点数', '完全な流量記録の地点数'],
+    ['Excluded: nonpositive own mean', '排除：自身均值非正', '除外：自身の平均が非正'],
+    ['Basin reference mean', '流域参考均值', '流域の基準平均'],
+    ['Study-wide reference mean', '全范围参考均值', '全研究地点の基準平均'],
+    ['Incomplete-flow exclusions across all study points', '全范围缺失／不完整流量排除点数', '全研究地点の欠損・不完全記録の除外数'],
+    ['own 12-month mean', '本点12个月均值', '自身の12か月平均'],
+    ['Months with normalized Q > threshold (2019)', '标准化 Q 超过阈值的月份数（2019）', '正規化Qが閾値を超える月数（2019年）'],
     ['Filter', '筛选', 'フィルター'],
     ['Filter map points', '筛选地图点位', '地図上の地点を絞り込む'],
     ['All conditions must match. Add two conditions on the same field to set a range. Changes apply only after clicking Apply filters.', '多个条件需同时满足。同一属性可添加两个条件来限定范围。点击“应用筛选”后才更新地图。', 'すべての条件を満たす地点を表示します。同じ項目に2条件を追加すると範囲を指定できます。「適用」を押すと地図を更新します。'],

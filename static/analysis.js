@@ -7,12 +7,42 @@ function renderAnalysisCharts() {
   const container = $('analysis-charts');
   container.replaceChildren();
   if (!analysisData) return;
-  const normalization = analysisBasin ? 'basin' : 'study';
+  renderAnalysisSummary();
+  const normalization = analysisComparison === 'point' ? 'point' : analysisBasin ? 'basin' : 'study';
   for (const chart of analysisData.charts) {
     const visible = analysisComparison === 'direct'
       ? chart.normalization == null : chart.normalization === normalization;
     if (visible) container.appendChild(proportionChart(chart));
   }
+}
+function renderAnalysisSummary() {
+  if (!analysisData) return;
+  const data = analysisData;
+  const scope = analysisBasin
+    ? state.basinById.get(Number(analysisBasin))?.display_name || analysisBasin
+    : 'All study points';
+  const summary = document.createElement('ul');
+  summary.className = 'analysis-notes';
+  const tr = text => window.viewerI18n.translate(text);
+  const entries = [scope, `${tr('Complete-flow points')}: ${format(data.catchments, 0)}`,
+    `${tr('Unresolved')}: ${format(data.unresolved, 0)}`];
+  let method;
+  if (analysisComparison === 'point') {
+    entries.push(`${tr('Excluded: nonpositive own mean')}: ${format(data.point_normalization_excluded, 0)}`);
+    method = "Per-point normalization: each monthly mean Q is divided by that point's own arithmetic mean of 12 monthly means. Months have equal weight; ratios are dimensionless. Nonpositive own means are excluded.";
+  } else if (analysisComparison === 'normalized') {
+    const reference = analysisBasin ? data.basin_mean_cms : data.national_mean_cms;
+    entries.push(`${tr(analysisBasin ? 'Basin reference mean' : 'Study-wide reference mean')}: ${format(reference, 3)} m3/s`);
+    method = 'Population normalization: divide monthly Q by the study-wide mean, or by the selected basin mean. These reference means average day-weighted annual discharge across points.';
+  } else {
+    method = 'Direct comparison: bin raw discharge or count months with Q > QT.';
+  }
+  entries.push(`${tr('Incomplete-flow exclusions across all study points')}: ${format(data.incomplete_national, 0)}`);
+  for (const text of entries) {
+    const item = document.createElement('li'); item.textContent = text; summary.appendChild(item);
+  }
+  $('analysis-status').replaceChildren(summary);
+  $('analysis-method-note').textContent = tr(method);
 }
 function selectAnalysisComparison(tab) {
   analysisComparison = tab.dataset.comparison;
@@ -45,21 +75,6 @@ async function loadFlowAnalysis() {
     if (sequence !== analysisRequest) return;
     analysisData = data;
     analysisBasin = params.get('basin');
-    const scope = $('basin-select').value
-      ? $('basin-select').selectedOptions[0].textContent : '全部研究点（包括未分配流域的点）';
-    const reference = analysisBasin
-      ? `流域平均 ${format(data.basin_mean_cms, 3)} m³/s`
-      : `全部研究点平均 ${format(data.national_mean_cms, 3)} m³/s`;
-    const summary = document.createElement('ul');
-    summary.className = 'analysis-notes';
-    for (const text of [scope, `${format(data.catchments, 0)} 个完整流量点`,
-      `${format(data.unresolved, 0)} 个未知分类`, reference,
-      `全范围缺失/不完整流量排除 ${data.incomplete_national} 点`]) {
-      const item = document.createElement('li');
-      item.textContent = text;
-      summary.appendChild(item);
-    }
-    status.replaceChildren(summary);
     renderAnalysisCharts();
   } catch (error) {
     if (sequence === analysisRequest) status.textContent = error.message;
@@ -99,7 +114,7 @@ function proportionChart(chart) {
     svg.appendChild(group);
   });
   svg.appendChild(svgElement('text', {x: 315, y: 252, 'text-anchor': 'middle', class: 'axis-label'},
-    chart.kind === 'months' ? 'Months with Q > threshold (2019)' : 'Annual mean Q (m³/s), fixed bins'));
+    chart.kind === 'months' ? (chart.normalization ? 'Months with normalized Q > threshold (2019)' : 'Months with Q > threshold (2019)') : 'Annual mean Q (m³/s), fixed bins'));
   card.appendChild(svg);
   const note = document.createElement('p');
   note.className = 'section-note';
@@ -130,9 +145,10 @@ comparisonTabs.forEach((tab, index) => {
   tab.addEventListener('click', () => selectAnalysisComparison(tab));
   tab.addEventListener('keydown', event => {
     let next;
-    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') next = comparisonTabs[1-index];
+    if (event.key === 'ArrowRight') next = comparisonTabs[(index+1)%comparisonTabs.length];
+    if (event.key === 'ArrowLeft') next = comparisonTabs[(index+comparisonTabs.length-1)%comparisonTabs.length];
     if (event.key === 'Home') next = comparisonTabs[0];
-    if (event.key === 'End') next = comparisonTabs[1];
+    if (event.key === 'End') next = comparisonTabs[comparisonTabs.length-1];
     if (!next) return;
     event.preventDefault();
     selectAnalysisComparison(next);
@@ -140,3 +156,5 @@ comparisonTabs.forEach((tab, index) => {
   });
 });
 loadFlowAnalysis();
+
+document.addEventListener('viewer-language-changed', renderAnalysisSummary);

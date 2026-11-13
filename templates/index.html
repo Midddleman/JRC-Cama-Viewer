@@ -138,13 +138,15 @@
           <ul class="section-note analysis-notes">
             <li>Direct comparison: bin raw discharge or count months with Q &gt; QT.</li>
             <li>Normalized: divide Q by the reference mean, then count months above the threshold (0–12).</li>
-            <li>Reference: study-wide mean for all points; basin mean for a selected basin.</li>
-            <li>Mean: arithmetic average of day-weighted annual means. Nonpositive references are not normalized.</li>
+            <li>Per-point reference: the arithmetic mean of each point's own 12 monthly means, with equal weight for each month.</li>
+            <li>Population reference: study-wide or selected-basin average of day-weighted annual means. Nonpositive references are excluded in both modes.</li>
           </ul>
           <div class="analysis-tabs" role="tablist" aria-label="Comparison method">
             <button id="direct-comparison-tab" type="button" role="tab" aria-selected="true" aria-controls="analysis-charts" data-comparison="direct">直接比较</button>
-            <button id="normalized-comparison-tab" type="button" role="tab" aria-selected="false" aria-controls="analysis-charts" data-comparison="normalized" tabindex="-1">标准化</button>
+            <button id="point-normalized-comparison-tab" type="button" role="tab" aria-selected="false" aria-controls="analysis-charts" data-comparison="point" tabindex="-1">Normalized (per point)</button>
+            <button id="normalized-comparison-tab" type="button" role="tab" aria-selected="false" aria-controls="analysis-charts" data-comparison="normalized" tabindex="-1">Normalized (study / basin)</button>
           </div>
+          <p id="analysis-method-note" class="section-note"></p>
           <div id="analysis-charts" role="tabpanel" aria-labelledby="direct-comparison-tab"></div>
           <ul class="section-note analysis-notes">
             <li>Only complete 12-month records with every day valid participate.</li>

@@ -4,12 +4,15 @@ Runoff is signed discharge / upstream area in m2 (m/s). Seven monthly statistics
 
 Discharge/Runoff switching keeps the horizontal axis fixed. The runoff chart and monthly table share the most common exponent across the point's monthly statistics (for example ×10⁻⁹ m/s); coefficients use two decimal places. Stored data and CSV remain in m/s.
 Point details are ordered by IDs/downstream relation, basin/network roles, annual discharge/runoff, geometry/area, then JRC corridor statistics. Annual discharge uses valid-day weights, matching annual runoff.
+Charts now has three comparison tabs in order: Direct comparison, Normalized (per point), Normalized (study / basin). Per-point normalization divides each signed monthly mean by the arithmetic mean of that same point's 12 monthly means, with equal month weights; nonpositive own means are excluded and reported. Dimensionless thresholds use strict >. Existing population-reference calculations are preserved. A normal update includes this feature with no extra data or dependencies.
 The third sidebar tab, Filter (`static/filter.js`), contains the relocated major-basin selector and combined conditions: numeric >/=/< with units, or categorical options for mainstem/tributary, confluence role and JRC status. Apply filters hides nonmatches on the map; Reset filters restores all points. Discharge/runoff use signed 2019 annual means; minimum-daily choices use stored rounded monthly minima. Conditions combine with AND and exclude missing values. Charts retain their all-study/applied named-basin scope. Normal installation/update includes the script and read-only filter APIs with no new dependencies.
 切换 Discharge/Runoff 时横轴位置固定；Runoff 图和月表共用该点月统计中最常见的指数（如 ×10⁻⁹ m/s），系数保留两位小数。数据库和 CSV 仍为 m/s 原值。
 点详情按编号与下游关系、流域与河网角色、年平均流量与径流、几何与面积、JRC 走廊统计排列。年平均流量与径流均按有效天数加权。
+Charts 按顺序提供：直接比较、逐点标准化、总体标准化（全范围／流域）。逐点标准化用本点各月有符号平均流量除以本点 12 个月月均值的算术平均，月份等权；自身均值非正的点明确排除并报告。阈值为无量纲，严格按 > 判断。原总体参考均值算法保留。正常更新即可获得，无需新增数据或依赖。
 第三个侧栏标签 Filter（`static/filter.js`）包含从地图移入的主要流域选择，以及可组合的筛选条件：连续值用 >、=、<、数值和单位；离散值用主干/支流、汇流角色及 JRC 分类等选项。点击应用筛选后地图只显示匹配点，重置恢复全部点。Discharge/Runoff 使用有符号 2019 年均值，最小日值使用已存月最小值。多条件同时满足，缺失值不匹配。Charts 保持全研究点/已应用命名流域的口径。正常安装更新即可获得脚本及只读筛选 API，无额外依赖。
 Discharge/Runoff の切替時も横軸位置は固定します。Runoff のグラフと月別表は月統計で最頻の指数（例：×10⁻⁹ m/s）を共有し、係数は小数点以下2桁で表示します。DBとCSVは m/s の元の値を保持します。
 地点詳細はIDと下流関係、流域と河網の役割、年平均流量と比流量、形状と面積、JRC回廊統計の順です。年平均流量と比流量は共に有効日数で加重します。
+Chartsは直接比較、地点別の正規化、全体／流域の正規化の順です。地点別では各月の符号付き平均流量を同じ地点の12か月の月平均流量の算術平均で割り、各月を等重みとします。自身の平均が非正の地点は除外数を表示します。無次元の閾値を厳密な > で比較し、従来の全体平均の計算は保持します。通常の更新で取得でき、追加データや依存関係は不要です。
 3番目のFilterタブ（`static/filter.js`）に流域選択を移し、単位付き数値条件（>、=、<）と本流/支流・合流点の役割・JRC分類の選択肢を追加しました。条件はANDで結合し、欠損値は除外します。適用時に地図を絞り込み、リセットで全地点に戻します。流量/比流量は2019年平均、最小日値は保存済み月最小値です。Chartsの集計範囲は全地点/適用済み流域のままです。通常の更新でスクリプトと読み取り専用APIを取得でき、追加依存関係は不要です。
 
 Runoff 为有符号流量 / 上游汇水面积（换算为 m²），单位 m/s。七种月统计及按有效天数加权的 2019 年平均值实际存储在 `monthly_runoff` 和 `annual_runoff` 表中。点详情和 CSV 包含该数据；月表和曲线可分别选择 Discharge/Runoff 与统计量。`runoff.sql` 负责计算并存储数值，源数据变化后需重新运行。正常安装或 `git pull` 即包含更新后的数据库，无需额外依赖或手动迁移。

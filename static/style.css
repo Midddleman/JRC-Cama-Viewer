@@ -11,7 +11,7 @@
 .sidebar-tabs button[aria-selected="true"] { color: #176e5e; border-bottom-color: #176e5e; font-weight: 650; }
 .detail-panel [role="tabpanel"][hidden] { display: none; }
 .analysis-tabs { display: flex; gap: 14px; position: sticky; top: var(--sidebar-tabs-height, 32px); z-index: 3; background: #fff; margin-top: 16px; border-bottom: 1px solid #e6ece9; }
-.analysis-tabs button { padding: 5px 1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #71847e; font-size: 12px; }
+.analysis-tabs button { min-width: 0; flex: 1 1 0; padding: 5px 1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #71847e; font-size: 12px; }
 .analysis-tabs button[aria-selected="true"] { color: #176e5e; border-bottom-color: #176e5e; font-weight: 650; }
 #analysis-controls { display: grid; gap: 10px; margin: 14px 0; }
 .analysis-notes { margin: 8px 0; padding-left: 18px; line-height: 1.55; }

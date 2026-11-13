@@ -363,8 +363,29 @@ def flow_analysis(records, absolute, normalized, basin=None):
         add_months(f'Q / basin mean > {coefficient:g}',
                    lambda r: coefficient*basin_means[r['basin']], eligible,
                    basin_means.get(basin), normalization='basin')
+    # Each point's reference is the unweighted arithmetic mean of its own
+    # twelve signed monthly means, deliberately not its day-weighted annual mean.
+    point_population = []
+    for record in selected:
+        months = record['months']
+        if len(months) != 12 or any(q is None or not math.isfinite(q) for q in months):
+            continue
+        point_mean = math.fsum(months) / 12
+        if math.isfinite(point_mean) and point_mean > 0:
+            point_population.append({**record, 'point_mean': point_mean})
+    for coefficient in normalized:
+        charts.append(dict(
+            title=f'Q / own 12-month mean > {coefficient:g}',
+            kind='months', normalization='point', threshold_cms=None,
+            ratio_threshold=coefficient, reference_mean_cms=None,
+            reference_definition='arithmetic_mean_of_own_12_signed_monthly_means',
+            excluded=len(selected)-len(point_population),
+            bins=proportion_bins(point_population, [str(i) for i in range(13)],
+                lambda r: sum(q / r['point_mean'] > coefficient for q in r['months']))))
     return dict(charts=charts, catchments=len(selected), national_mean_cms=national_mean,
                 basin_mean_cms=basin_means.get(basin),
+                point_normalization_eligible=len(point_population),
+                point_normalization_excluded=len(selected)-len(point_population),
                 unresolved=sum(r['status'] not in (1, 2) for r in selected))
 
 
