@@ -20,7 +20,8 @@ sidebarTabs.forEach((tab, index) => {
   tab.addEventListener('click', () => activateSidebarTab(tab));
   tab.addEventListener('keydown', event => {
     let next;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') next = sidebarTabs[1 - index];
+    if (event.key === 'ArrowRight') next = sidebarTabs[(index + 1) % sidebarTabs.length];
+    if (event.key === 'ArrowLeft') next = sidebarTabs[(index + sidebarTabs.length - 1) % sidebarTabs.length];
     if (event.key === 'Home') next = sidebarTabs[0];
     if (event.key === 'End') next = sidebarTabs[sidebarTabs.length - 1];
     if (!next) return;

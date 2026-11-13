@@ -40,18 +40,11 @@
             <label><input id="layer-points" type="checkbox" checked> CaMa points</label>
             <label><input id="layer-basins" type="checkbox" checked> Basin boundaries</label>
           </div>
-          <button id="reset-view" type="button" title="Reset map extent">Full extent</button>
-        </div>
-        <div class="basin-toolbar">
-          <label for="basin-select">Major river basin</label>
-          <div class="basin-selection">
-            <select id="basin-select"><option value="">All study points</option></select>
+          <span id="filter-map-count" aria-live="polite"></span>
             <button id="drawing-toggle" type="button" aria-label="Map drawing tools" title="Map drawing tools" aria-expanded="false" aria-controls="drawing-toolbar">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 5 3 3M4 20l4-.8L20 7.2 16.8 4 4.8 16z"/></svg>
             </button>
-          </div>
-          <span id="basin-focus-count" aria-live="polite">Loading basin statistics...</span>
-          <button id="clear-basin" type="button" title="Clear basin focus" disabled>Clear focus</button>
+          <button id="reset-view" type="button" title="Reset map extent">Full extent</button>
         </div>
         <div id="drawing-toolbar" class="drawing-toolbar" role="toolbar" aria-label="Map drawing tools" hidden>
           <div class="drawing-modes" role="group" aria-label="Map mode">
@@ -104,6 +97,27 @@
         <div class="sidebar-tabs" role="tablist" aria-label="侧栏内容">
           <button id="data-tab" type="button" role="tab" aria-selected="true" aria-controls="data-panel">数据</button>
           <button id="charts-tab" type="button" role="tab" aria-selected="false" aria-controls="charts-panel" tabindex="-1">图表</button>
+          <button id="filter-tab" type="button" role="tab" aria-selected="false" aria-controls="filter-panel" tabindex="-1">Filter</button>
+        </div>
+        <div id="filter-panel" role="tabpanel" aria-labelledby="filter-tab" hidden>
+          <h2>Filter map points</h2>
+          <p class="section-note">All conditions must match. Add two conditions on the same field to set a range. Changes apply only after clicking Apply filters.</p>
+          <form id="filter-form">
+            <label class="filter-basin" for="basin-select">Major river basin
+              <select id="basin-select"><option value="">All study points</option><option value="unassigned">Not assigned to a named major basin</option></select>
+            </label>
+            <div id="filter-rules"></div>
+            <button id="add-filter-rule" type="button">Add condition</button>
+            <div class="filter-actions">
+              <button id="apply-filters" type="submit" disabled>Apply filters</button>
+              <button id="reset-filters" type="button" disabled>Reset filters</button>
+              <button id="fit-filter-results" type="button" disabled>Fit results</button>
+            </div>
+          </form>
+          <p id="filter-status" class="section-note" role="status" aria-live="polite">Loading filter fields...</p>
+          <div id="basin-focus-count" aria-live="polite"></div>
+          <p class="section-note">Discharge and runoff: signed, valid-day-weighted 2019 annual means. Minimum daily values use stored monthly minima rounded to three discharge decimals. Missing values do not match a condition.</p>
+          <p class="section-note">Filters change the map only. Charts summarize all study points or the applied named basin, without the other filter conditions.</p>
         </div>
         <div id="charts-panel" role="tabpanel" aria-labelledby="charts-tab" hidden>
         <section id="flow-analysis" aria-label="Perennial proportions">
@@ -156,18 +170,22 @@
         <div id="channel-facts" class="facts"></div>
 
         <div class="section-head chart-head"><h2>Monthly flow, 2019</h2>
+          <label class="metric-label" for="quantity-select">Quantity
+            <select id="quantity-select"><option value="discharge">Discharge</option><option value="runoff">Runoff</option></select>
+          </label>
           <label class="metric-label" for="metric-select">Statistic
             <select id="metric-select">
-              <option value="mean_flow_cms">Mean</option>
-              <option value="min_flow_cms">Minimum</option>
-              <option value="q25_flow_cms">25th percentile</option>
-              <option value="median_flow_cms">Median</option>
-              <option value="q75_flow_cms">75th percentile</option>
-              <option value="max_flow_cms">Maximum</option>
-              <option value="mode_flow_cms">Mode</option>
+              <option value="mean">Mean</option>
+              <option value="min">Minimum</option>
+              <option value="q25">25th percentile</option>
+              <option value="median">Median</option>
+              <option value="q75">75th percentile</option>
+              <option value="max">Maximum</option>
+              <option value="mode">Mode</option>
             </select>
           </label>
         </div>
+        <p class="note">Runoff = signed discharge / upstream area in m2 (m/s). Annual mean is weighted by valid days; this is not local surface runoff.</p>
         <div id="chart-wrap"><svg id="flow-chart" role="img" aria-label="Monthly flow chart"></svg></div>
         <div class="section-head"><h2>Monthly statistics</h2><span id="flow-unit">m3/s</span></div>
         <div class="table-wrap monthly-wrap">
@@ -183,6 +201,7 @@
   <script src="/static/i18n.js" defer></script>
   <script src="/static/app.js" defer></script>
   <script src="/static/analysis.js" defer></script>
+  <script src="/static/filter.js" defer></script>
   <script src="/static/sidebar.js" defer></script>
 </body>
 </html>

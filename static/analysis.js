@@ -34,7 +34,7 @@ async function loadFlowAnalysis() {
   const params = new URLSearchParams({
     absolute: $('absolute-thresholds').value,
     normalized: $('normalized-thresholds').value,
-    basin: $('basin-select').value,
+    basin: state.selectedBasinId == null ? '' : String(state.selectedBasinId),
   });
   try {
     const response = await fetch(`/api/flow-analysis?${params}`);

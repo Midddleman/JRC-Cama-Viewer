@@ -4,6 +4,7 @@ const ctx = canvas.getContext("2d");
 const hitCanvas = document.createElement("canvas");
 const hitCtx = hitCanvas.getContext("2d", { willReadFrequently: true });
 const state = {
+  visibleIds: null,
   links: [], byId: new Map(), selectedId: null, detail: null,
   basins: [], basinById: new Map(), selectedBasinId: null,
   streamFocus: null,
@@ -232,6 +233,7 @@ function render() {
   const [east, south] = toGeo(state.width, state.height);
   if ($("layer-links").checked) {
     state.links.forEach((link, index) => {
+      if (!isLinkVisible(link)) return;
       if (link.downstream_longitude == null) return;
       if (Math.max(link.longitude, link.downstream_longitude) < west ||
           Math.min(link.longitude, link.downstream_longitude) > east ||
@@ -251,7 +253,7 @@ function render() {
     });
     ctx.globalAlpha = 1;
     const selected = state.byId.get(state.selectedId);
-    if (selected) {
+    if (selected && isLinkVisible(selected)) {
       ctx.strokeStyle = highlightedLineColor(streamFocusRole(selected), selected);
       ctx.lineWidth = 4;
       ctx.globalAlpha = 1;
@@ -262,6 +264,7 @@ function render() {
     const offset = state.links.length + 1;
     const dense = state.scale < 22;
     state.links.forEach((link, index) => {
+      if (!isLinkVisible(link)) return;
       const [x, y] = toScreen(link.longitude, link.latitude);
       if (x < -8 || y < -8 || x > state.width + 8 || y > state.height + 8) return;
       const selected = state.selectedId === link.catchment_id;
@@ -317,7 +320,7 @@ function fitStreamFocus() {
   if (!state.streamFocus) return;
   const focus = state.streamFocus;
   const links = state.links.filter((link) => {
-    if (link.basin_outlet_id !== focus.basinOutletId) return false;
+    if (!isLinkVisible(link) || link.basin_outlet_id !== focus.basinOutletId) return false;
     return link.basin_mainstem === 1 || (!focus.isMainstem && link.stream_id === focus.streamId);
   });
   const coordinates = links.flatMap((link) => [
@@ -361,9 +364,16 @@ function hitAt(x, y) {
   const dpr = hitCanvas.width / state.width;
   const pixel = hitCtx.getImageData(Math.floor(x * dpr), Math.floor(y * dpr), 1, 1).data;
   const index = colorId(pixel);
-  if (index >= 1 && index <= state.links.length) return state.links[index - 1];
+  if (index >= 1 && index <= state.links.length) {
+    const link = state.links[index - 1];
+    return isLinkVisible(link) ? link : null;
+  }
   const pointIndex = index - state.links.length - 1;
-  return pointIndex >= 0 && pointIndex < state.links.length ? state.links[pointIndex] : null;
+  const link = pointIndex >= 0 && pointIndex < state.links.length ? state.links[pointIndex] : null;
+  return link && isLinkVisible(link) ? link : null;
+}
+function isLinkVisible(link) {
+  return state.visibleIds == null || state.visibleIds.has(link.catchment_id);
 }
 function fact(label, value) {
   return `<div><span>${label}</span><strong>${value}</strong></div>`;
@@ -388,12 +398,12 @@ function updateStreamFocusControl(link) {
     return;
   }
   const mainstemCount = state.links.filter((item) =>
-    item.basin_outlet_id === link.basin_outlet_id && item.basin_mainstem === 1
+    isLinkVisible(item) && item.basin_outlet_id === link.basin_outlet_id && item.basin_mainstem === 1
   ).length;
   if (link.basin_mainstem === 1) {
     $("stream-focus-note").innerHTML = `<span class="network-key mainstem"></span>Mainstem · ${number.format(mainstemCount)} displayed links`;
   } else {
-    const tributaryCount = state.links.filter((item) => item.stream_id === link.stream_id).length;
+    const tributaryCount = state.links.filter((item) => isLinkVisible(item) && item.stream_id === link.stream_id).length;
     $("stream-focus-note").innerHTML = `<span class="network-key tributary"></span>Tributary · ${number.format(tributaryCount)} links <span class="network-key mainstem"></span>Mainstem · ${number.format(mainstemCount)} links`;
   }
 }
@@ -403,26 +413,57 @@ function renderDetail(data) {
   const cssClass = link.jrc_status === 2 ? "perennial" : link.jrc_status === 1 ? "intermittent" : "no-water";
   $("link-status").innerHTML = `<span class="status-pill ${cssClass}">${statusText(link)}</span><span>${link.jrc_label.replaceAll("_", " ")}</span>`;
   updateStreamFocusControl(link);
+  const flowMonths = data.months.filter(row => row.year === 2019 && row.mean_flow_cms != null && row.valid_days > 0);
+  const validDays = flowMonths.reduce((total, row) => total + row.valid_days, 0);
+  const annualDischarge = validDays ? flowMonths.reduce((total, row) => total + row.mean_flow_cms * row.valid_days, 0) / validDays : null;
   $("link-facts").innerHTML =
+    fact("Catchment ID", number.format(link.catchment_id)) +
+    fact("Downstream catchment", format(link.downstream_id, 0)) +
     fact("Major river basin", link.major_basin_name || "Not assigned to a named major basin") +
+    fact("Stream ID", format(link.stream_id, 0)) +
     fact("Network role", link.basin_mainstem === 1 ? "Basin mainstem" : "Tributary stream") +
     fact("Local confluence role", localNetworkRole(link)) +
-    fact("Stream ID", format(link.stream_id, 0)) +
-    fact("Downstream catchment", format(link.downstream_id, 0)) +
+    fact("Annual mean discharge, 2019", `${format(annualDischarge, 3)} m3/s`) +
+    fact("Annual mean runoff, 2019", `${formatRunoff(link.annual_mean_runoff_mps)} m/s`) +
     fact("Link length", link.link_length_m == null ? "-" : `${format(link.link_length_m / 1000, 2)} km`) +
     fact("Upstream area", `${format(link.upstream_area_km2, 0)} km2`) +
     fact("Corridor width", "10 km") +
+    fact("Valid corridor cells", format(link.valid_cell_count, 0)) +
     fact("JRC perennial cells", format(link.perennial_count, 0)) +
     fact("JRC intermittent cells", format(link.intermittent_count, 0)) +
-    fact("Connected blue path", link.connected_path_cells == null ? "-" : `${format(link.connected_path_cells, 0)} cells`) +
-    fact("Valid corridor cells", format(link.valid_cell_count, 0));
+    fact("Connected blue path", link.connected_path_cells == null ? "-" : `${format(link.connected_path_cells, 0)} cells`);
   renderChannel(data.channel);
   $("download-link").hidden = false;
   $("download-link").href = `/api/catchment/${link.catchment_id}/csv`;
-  $("monthly-table").querySelector("tbody").innerHTML = data.months.map((row) =>
-    `<tr><td>${row.month}</td><td>${format(row.min_flow_cms, 3)}</td><td>${format(row.q25_flow_cms, 3)}</td><td>${format(row.median_flow_cms, 3)}</td><td>${format(row.mean_flow_cms, 3)}</td><td>${format(row.q75_flow_cms, 3)}</td><td>${format(row.max_flow_cms, 3)}</td><td>${format(row.mode_flow_cms, 3)}</td></tr>`
-  ).join("");
   renderChart();
+}
+function formatRunoff(value) {
+  return value == null ? "-" : Number(value).toExponential(2);
+}
+function runoffDisplayScale() {
+  const counts = new Map();
+  for (const row of state.detail?.months || []) {
+    for (const stat of ["min", "q25", "median", "mean", "q75", "max", "mode"]) {
+      const value = row[`${stat}_runoff_mps`];
+      if (value == null || !Number.isFinite(value) || value === 0) continue;
+      const exponent = Math.floor(Math.log10(Math.abs(value)));
+      counts.set(exponent, (counts.get(exponent) || 0) + 1);
+    }
+  }
+  const exponent = [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0;
+  const superscript = String(exponent).split("").map(c => ({"-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹"})[c]).join("");
+  return {factor: 10 ** exponent, unit: exponent === 0 ? "m/s" : `×10${superscript} m/s`};
+}
+function renderMonthlyTable() {
+  const runoff = $("quantity-select").value === "runoff";
+  const scale = runoffDisplayScale();
+  $("flow-unit").textContent = runoff ? scale.unit : "m3/s";
+  $("monthly-table").querySelector("tbody").innerHTML = (state.detail?.months || []).map(row =>
+    `<tr><td>${row.month}</td>${["min", "q25", "median", "mean", "q75", "max", "mode"].map(stat => {
+      const value = row[`${stat}_${runoff ? "runoff_mps" : "flow_cms"}`];
+      return `<td>${runoff ? format(value == null ? null : value / scale.factor, 2) : format(value, 3)}</td>`;
+    }).join("")}</tr>`
+  ).join("");
 }
 function svgElement(tag, attrs = {}, content = null) {
   const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -444,20 +485,31 @@ function renderChart() {
   svg.replaceChildren();
   svg.setAttribute("viewBox", "0 0 520 245");
   const rows = state.detail?.months || [];
-  const metric = $("metric-select").value;
-  const max = Math.max(...rows.map((row) => row[metric]).filter((value) => value != null), 1) * 1.08;
-  const xPos = (month) => 46 + (month - 1) * 40;
-  const yPos = (value) => 194 - (value / max) * 162;
+  renderMonthlyTable();
+  const runoff = $("quantity-select").value === "runoff";
+  const metric = `${$("metric-select").value}_${runoff ? "runoff_mps" : "flow_cms"}`;
+  const scale = runoffDisplayScale();
+  const unit = runoff ? scale.unit : "m3/s";
+  const values = rows.map(row => row[metric]).filter(value => value != null);
+  const low = Math.min(0, ...values);
+  const high = Math.max(0, ...values);
+  const span = high - low || (runoff ? 1e-9 : 1);
+  const max = high + span * 0.08;
+  const min = low < 0 ? low - span * 0.08 : 0;
+  const xStart = 68;
+  const xPos = (month) => xStart + (month - 1) * (491 - xStart) / 11;
+  const yPos = (value) => 194 - ((value - min) / (max - min)) * 162;
   for (let tick = 0; tick <= 4; tick++) {
-    const value = max * tick / 4;
+    const value = min + (max - min) * tick / 4;
     const y = yPos(value);
-    svg.appendChild(svgElement("line", { x1: 46, y1: y, x2: 491, y2: y, stroke: "#e3e9e7" }));
-    svg.appendChild(svgElement("text", { x: 39, y: y + 4, "text-anchor": "end", class: "axis-label" }, format(value, 1)));
+    svg.appendChild(svgElement("line", { x1: xStart, y1: y, x2: 491, y2: y, stroke: "#e3e9e7" }));
+    svg.appendChild(svgElement("text", { x: xStart - 7, y: y + 4, "text-anchor": "end", class: "axis-label" }, runoff ? format(value / scale.factor, 2) : format(value, 1)));
   }
   for (let month = 1; month <= 12; month++) {
     svg.appendChild(svgElement("text", { x: xPos(month), y: 219, "text-anchor": "middle", class: "axis-label" }, month));
   }
   svg.appendChild(svgElement("text", { x: 491, y: 236, "text-anchor": "end", class: "axis-label" }, "Month"));
+  svg.appendChild(svgElement("text", { x: 491, y: 18, "text-anchor": "end", class: "axis-label" }, unit));
   const valid = rows.filter((row) => row[metric] != null);
   const path = valid.map((row, index) => `${index ? "L" : "M"}${xPos(row.month)},${yPos(row[metric])}`).join(" ");
   svg.appendChild(svgElement("path", {
@@ -466,21 +518,23 @@ function renderChart() {
   }));
   valid.forEach((row) => {
     const circle = svgElement("circle", { cx: xPos(row.month), cy: yPos(row[metric]), r: 3.4, fill: "#137b69" });
-    circle.appendChild(svgElement("title", {}, `Month ${row.month}: ${format(row[metric], 3)} m3/s`));
+    circle.appendChild(svgElement("title", {}, `Month ${row.month}: ${runoff ? format(row[metric] / scale.factor, 2) : format(row[metric], 3)} ${unit}`));
     svg.appendChild(circle);
   });
 }
 async function selectLink(id, jump = false) {
   const overviewLink = state.byId.get(id);
-  if (!overviewLink) {
-    $("catchment-search").setCustomValidity(window.viewerI18n.translate("Catchment ID not found"));
+  if (!overviewLink || !isLinkVisible(overviewLink)) {
+    $("catchment-search").setCustomValidity(window.viewerI18n.translate(overviewLink ? "Catchment excluded by current filters" : "Catchment ID not found"));
     $("catchment-search").reportValidity();
     return;
   }
   $("catchment-search").setCustomValidity("");
   const response = await fetch(`/api/catchment/${id}`);
   if (!response.ok) throw new Error(`Could not load catchment ${id}`);
-  state.detail = await response.json();
+  const detail = await response.json();
+  if (!isLinkVisible(overviewLink)) return;
+  state.detail = detail;
   state.selectedId = id;
   state.streamFocus = null;
   $("catchment-search").value = id;
@@ -510,6 +564,7 @@ async function init() {
     const red = state.links.filter((link) => link.jrc_status === 1).length;
     $("map-count").textContent = `${number.format(green)} perennial | ${number.format(red)} non-perennial | ${number.format(state.links.length - green - red)} unresolved`;
     $("map-loading").hidden = true;
+    document.dispatchEvent(new Event("viewer-ready"));
     const initial = state.links[Math.floor(Math.random() * state.links.length)];
     if (initial) await selectLink(initial.catchment_id);
     fitAll();
@@ -530,6 +585,7 @@ $("reset-view").addEventListener("click", fitAll);
 $("zoom-in").addEventListener("click", () => zoomAt(1.65));
 $("zoom-out").addEventListener("click", () => zoomAt(1 / 1.65));
 $("metric-select").addEventListener("change", renderChart);
+$("quantity-select").addEventListener("change", renderChart);
 for (const id of ["layer-jrc", "layer-links", "layer-points", "layer-basins"]) $(id).addEventListener("change", queueRender);
 $("jrc-opacity").addEventListener("input", (event) => {
   $("jrc-opacity-value").textContent = `${event.target.value}%`;
@@ -550,28 +606,6 @@ document.querySelector(".jrc-layer-control").addEventListener("keydown", (event)
   setOpacityPanelOpen(false);
   $("jrc-opacity-toggle").focus();
 });
-function setBasinFocus(value, fit = true) {
-  state.selectedBasinId = value === "" ? null : Number(value);
-  $("basin-select").value = value;
-  $("clear-basin").disabled = state.selectedBasinId == null;
-  document.dispatchEvent(new Event('basin-focus-changed'));
-  const basin = selectedBasin();
-  if (!basin) {
-    renderBasinStatistics(
-      state.links.length,
-      state.links.filter(link => link.jrc_status === 2).length,
-      state.links.filter(link => link.jrc_status === 1).length,
-      state.links.filter(link => ![1, 2].includes(link.jrc_status)).length,
-    );
-    if (fit) fitAll(); else queueRender();
-    return;
-  }
-  renderBasinStatistics(basin.catchment_count, basin.perennial_count,
-                        basin.nonperennial_count, basin.unresolved_count);
-  if (fit) fitBasin(basin); else queueRender();
-}
-$("basin-select").addEventListener("change", (event) => setBasinFocus(event.target.value));
-$("clear-basin").addEventListener("click", () => setBasinFocus(""));
 $("stream-focus-button").addEventListener("click", () => {
   const link = state.detail?.link;
   if (!link) return;

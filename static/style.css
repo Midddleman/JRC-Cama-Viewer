@@ -243,3 +243,27 @@ td:last-child, th:last-child { text-align: right; }
   #basin-focus-count { width: 100%; margin-left: 0; justify-content: flex-start; text-align: left; }
   .map-toolbar { padding: 7px 10px; }
 }
+
+.chart-head { flex-wrap: wrap; gap: 8px; }
+.chart-head h2 { flex-basis: 100%; }
+
+.map-toolbar { flex-wrap: wrap; }
+#drawing-toggle { border: 1px solid #b7c6c1; border-radius: 5px; background: #fff; color: #26453e; }
+#filter-map-count { color: #537268; font-size: 12px; white-space: nowrap; }
+#filter-panel { padding-bottom: 18px; }
+#filter-form { display: flex; flex-direction: column; gap: 12px; }
+.filter-basin { display: flex; flex-direction: column; gap: 6px; color: #435b55; font-size: 13px; }
+#filter-form select, #filter-form input { min-width: 0; height: 34px; border: 1px solid #bfcec7; border-radius: 5px; background: white; padding: 0 7px; color: #29453d; font: inherit; }
+#filter-rules { display: flex; flex-direction: column; gap: 10px; }
+.filter-rule { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 7px; padding: 10px; border: 1px solid #dce5e0; border-radius: 7px; background: #f7faf8; }
+.filter-field { grid-column: 1; width: 100%; }
+.filter-rule-controls { grid-column: 1; display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; gap: 7px; }
+.filter-value { width: 100%; }
+.filter-unit { font-size: 12px; color: #617a70; white-space: nowrap; }
+.filter-rule > button { grid-column: 2; grid-row: 1; width: 28px; padding: 0; }
+#filter-form button { min-height: 32px; border: 1px solid #bdcfc5; border-radius: 5px; background: #fff; color: #34594a; padding: 4px 10px; cursor: pointer; }
+#add-filter-rule { align-self: flex-start; }
+.filter-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#filter-form #apply-filters { background: #176e5e; color: white; border-color: #176e5e; }
+#filter-form button:disabled { opacity: .5; cursor: default; }
+#filter-panel #basin-focus-count { margin: 12px 0; justify-content: flex-start; text-align: left; }

@@ -1,5 +1,21 @@
 # JRC–CaMa Interactive Viewer (Scroll down for the Chinese and Japanese versions.)
 
+Runoff is signed discharge / upstream area in m2 (m/s). Seven monthly statistics and the valid-day-weighted 2019 annual mean are stored in `monthly_runoff` and `annual_runoff` tables. Point details and CSV include it; the monthly table/chart has separate Discharge/Runoff and statistic selectors. `runoff.sql` materializes the values; re-run it if source data changes. Normal installation or `git pull` includes the updated database; no extra dependencies or manual migration are needed.
+
+Discharge/Runoff switching keeps the horizontal axis fixed. The runoff chart and monthly table share the most common exponent across the point's monthly statistics (for example ×10⁻⁹ m/s); coefficients use two decimal places. Stored data and CSV remain in m/s.
+Point details are ordered by IDs/downstream relation, basin/network roles, annual discharge/runoff, geometry/area, then JRC corridor statistics. Annual discharge uses valid-day weights, matching annual runoff.
+The third sidebar tab, Filter (`static/filter.js`), contains the relocated major-basin selector and combined conditions: numeric >/=/< with units, or categorical options for mainstem/tributary, confluence role and JRC status. Apply filters hides nonmatches on the map; Reset filters restores all points. Discharge/runoff use signed 2019 annual means; minimum-daily choices use stored rounded monthly minima. Conditions combine with AND and exclude missing values. Charts retain their all-study/applied named-basin scope. Normal installation/update includes the script and read-only filter APIs with no new dependencies.
+切换 Discharge/Runoff 时横轴位置固定；Runoff 图和月表共用该点月统计中最常见的指数（如 ×10⁻⁹ m/s），系数保留两位小数。数据库和 CSV 仍为 m/s 原值。
+点详情按编号与下游关系、流域与河网角色、年平均流量与径流、几何与面积、JRC 走廊统计排列。年平均流量与径流均按有效天数加权。
+第三个侧栏标签 Filter（`static/filter.js`）包含从地图移入的主要流域选择，以及可组合的筛选条件：连续值用 >、=、<、数值和单位；离散值用主干/支流、汇流角色及 JRC 分类等选项。点击应用筛选后地图只显示匹配点，重置恢复全部点。Discharge/Runoff 使用有符号 2019 年均值，最小日值使用已存月最小值。多条件同时满足，缺失值不匹配。Charts 保持全研究点/已应用命名流域的口径。正常安装更新即可获得脚本及只读筛选 API，无额外依赖。
+Discharge/Runoff の切替時も横軸位置は固定します。Runoff のグラフと月別表は月統計で最頻の指数（例：×10⁻⁹ m/s）を共有し、係数は小数点以下2桁で表示します。DBとCSVは m/s の元の値を保持します。
+地点詳細はIDと下流関係、流域と河網の役割、年平均流量と比流量、形状と面積、JRC回廊統計の順です。年平均流量と比流量は共に有効日数で加重します。
+3番目のFilterタブ（`static/filter.js`）に流域選択を移し、単位付き数値条件（>、=、<）と本流/支流・合流点の役割・JRC分類の選択肢を追加しました。条件はANDで結合し、欠損値は除外します。適用時に地図を絞り込み、リセットで全地点に戻します。流量/比流量は2019年平均、最小日値は保存済み月最小値です。Chartsの集計範囲は全地点/適用済み流域のままです。通常の更新でスクリプトと読み取り専用APIを取得でき、追加依存関係は不要です。
+
+Runoff 为有符号流量 / 上游汇水面积（换算为 m²），单位 m/s。七种月统计及按有效天数加权的 2019 年平均值实际存储在 `monthly_runoff` 和 `annual_runoff` 表中。点详情和 CSV 包含该数据；月表和曲线可分别选择 Discharge/Runoff 与统计量。`runoff.sql` 负责计算并存储数值，源数据变化后需重新运行。正常安装或 `git pull` 即包含更新后的数据库，无需额外依赖或手动迁移。
+
+Runoff は符号付き流量 / 上流集水面積（m²に換算）、単位は m/s です。7種類の月統計量と有効日数で加重した2019年平均を `monthly_runoff`・`annual_runoff` テーブルに保存します。地点詳細とCSVに加え、月別表・グラフでは Discharge/Runoff と統計量を個別に選択できます。`runoff.sql` で計算・保存し、元データ変更時には再実行します。通常のインストールまたは `git pull` で更新済みDBが取得され、追加依存関係や手動移行は不要です。
+
 An interactive, read-only visualization of CaMa-Flood
 river links and JRC surface-water classifications.
 
@@ -171,6 +187,7 @@ ZIP 用户请重新下载最新版，解压到新目录，安装依赖并启动�
 ```text
 JRC-Cama-Viewer/
 ├── app.py                 # Flask 后端
+├── runoff.sql             # 计算并存储 m/s 径流数据
 ├── requirements.txt       # Python 依赖
 ├── README.md              # 项目说明
 ├── data/
@@ -180,6 +197,7 @@ JRC-Cama-Viewer/
 ├── static/
 │   ├── app.js             # 前端交互逻辑
 │   ├── analysis.js        # 流量与常年比例图表
+│   ├── filter.js          # 地图多条件筛选
 │   ├── i18n.js            # 中英日语言切换
 │   ├── sidebar.js         # 侧栏标签与吸顶逻辑
 │   └── style.css          # 页面样式
@@ -293,6 +311,7 @@ ZIPの場合は最新版を新しいフォルダに展開し、依存関係を�
 ```text
 JRC-Cama-Viewer/
 ├── app.py                 # Flask バックエンド
+├── runoff.sql             # m/s の比流量を計算・保存
 ├── requirements.txt       # Python 依存パッケージ
 ├── README.md              # プロジェクト説明
 ├── data/
@@ -302,6 +321,7 @@ JRC-Cama-Viewer/
 ├── static/
 │   ├── app.js             # フロントエンド処理
 │   ├── analysis.js        # 流量・恒常流割合グラフ
+│   ├── filter.js          # 地図の複合条件フィルター
 │   ├── i18n.js            # 中英日言語切り替え
 │   ├── sidebar.js         # タブと固定表示
 │   └── style.css          # スタイルシート

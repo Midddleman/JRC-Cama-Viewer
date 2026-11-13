@@ -90,6 +90,107 @@ def jrc_image():
     return send_file(JRC_PATH, mimetype="image/png", conditional=True)
 
 
+FILTER_FIELDS = [
+    ("discharge", "Annual mean discharge, 2019", "m3/s", "f.mean_discharge"),
+    ("runoff", "Annual mean runoff, 2019", "m/s", "r.mean_runoff_mps"),
+    ("min_discharge", "Minimum daily discharge, 2019", "m3/s", "f.min_discharge"),
+    ("min_runoff", "Minimum daily runoff, 2019", "m/s", "f.min_discharge / NULLIF(l.upstream_area_km2 * 1000000.0, 0)"),
+    ("upstream_area", "Upstream area", "km2", "l.upstream_area_km2"),
+    ("slope", "Derived channel slope", "m/km", "g.channel_slope_m_per_m * 1000.0"),
+    ("width", "Channel width", "m", "g.river_width_m"),
+    ("depth", "Model bankfull depth", "m", "g.river_height_m"),
+    ("channel_length", "Model channel length", "km", "g.river_length_m / 1000.0"),
+    ("link_length", "Link length", "km", "l.link_length_m / 1000.0"),
+    ("elevation", "Catchment elevation", "m", "g.catchment_elevation_m"),
+    ("elevation_drop", "Elevation drop", "m", "g.elevation_drop_m"),
+]
+FILTER_CHOICES = {
+    "network_role": ("Network role", "n.basin_mainstem", [(1, "Basin mainstem"), (0, "Tributary stream")]),
+    "local_role": ("Local confluence role", "CASE WHEN n.is_dominant_upstream=1 THEN 'dominant' WHEN n.is_dominant_upstream=0 THEN 'tributary' WHEN l.catchment_id=l.downstream_id THEN 'outlet' ELSE 'none' END",
+                   [("dominant", "Dominant upstream"), ("tributary", "Tributary at confluence"), ("outlet", "Basin outlet"), ("none", "No downstream confluence")]),
+    "jrc_status": ("JRC status", "COALESCE(l.jrc_status, 0)", [(2, "Perennial"), (1, "Non-perennial"), (0, "Unresolved")]),
+}
+
+
+@app.get("/api/filter-fields")
+def filter_fields():
+    fields = [dict(key=key, label=label, unit=unit, kind="number")
+              for key, label, unit, _ in FILTER_FIELDS]
+    fields.extend(dict(key=key, label=label, unit="", kind="choice",
+                       choices=[dict(value=value, label=text) for value, text in choices])
+                  for key, (label, _, choices) in FILTER_CHOICES.items())
+    return jsonify({"fields": fields})
+
+
+@app.post("/api/filter")
+def filter_points():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        abort(400, description="Expected a JSON filter object")
+    rules = payload.get("rules", [])
+    if not isinstance(rules, list) or len(rules) > 32:
+        abort(400, description="Use at most 32 filter conditions")
+    numeric = {key: expr for key, _, _, expr in FILTER_FIELDS}
+    operators = {"gt": ">", "eq": "=", "lt": "<"}
+    conditions, parameters = [], []
+    basin = payload.get("basin", "")
+    if basin == "unassigned":
+        conditions.append("m.basin_id IS NULL")
+    elif basin not in ("", None):
+        if isinstance(basin, bool) or str(basin).strip() != str(basin) or not str(basin).isdigit():
+            abort(400, description="Invalid major river basin")
+        basin = int(basin)
+        with closing(database()) as c:
+            if not c.execute("SELECT 1 FROM major_river_basins WHERE basin_id=?", (basin,)).fetchone():
+                abort(400, description="Unknown major river basin")
+        conditions.append("m.basin_id = ?")
+        parameters.append(basin)
+    for rule in rules:
+        if not isinstance(rule, dict):
+            abort(400, description="Invalid filter condition")
+        field, operator, value = rule.get("field"), rule.get("operator"), rule.get("value")
+        if not isinstance(field, str) or not isinstance(operator, str):
+            abort(400, description="Invalid field or operator")
+        if field in numeric:
+            if operator not in operators or isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                abort(400, description="Numeric filters require >, = or < and a finite number")
+            conditions.append(f"({numeric[field]}) {operators[operator]} ?")
+            parameters.append(value)
+        elif field in FILTER_CHOICES:
+            _, expression, choices = FILTER_CHOICES[field]
+            allowed = {str(v): v for v, _ in choices}
+            if operator != "eq" or isinstance(value, bool) or str(value) not in allowed:
+                abort(400, description="Invalid categorical option")
+            conditions.append(f"({expression}) = ?")
+            parameters.append(allowed[str(value)])
+        else:
+            abort(400, description="Unknown filter field")
+    where = " AND ".join(conditions) or "1=1"
+    with closing(database()) as c:
+        c.execute("ATTACH DATABASE ? AS network", (f"file:{CLASSIFICATION_PATH.as_posix()}?mode=ro",))
+        rows = c.execute(f"""
+            WITH annual_flow AS (
+                SELECT catchment_id,
+                       SUM(mean_flow_cms * valid_days) / NULLIF(SUM(CASE WHEN mean_flow_cms IS NOT NULL THEN valid_days ELSE 0 END), 0) AS mean_discharge,
+                       MIN(min_flow_cms) AS min_discharge
+                FROM monthly_flow_stats WHERE year=2019 GROUP BY catchment_id
+            )
+            SELECT l.catchment_id, l.jrc_status
+            FROM catchment_links l
+            LEFT JOIN catchment_major_basins m USING(catchment_id)
+            LEFT JOIN channel_geometry g USING(catchment_id)
+            LEFT JOIN annual_flow f USING(catchment_id)
+            LEFT JOIN annual_runoff r ON r.catchment_id=l.catchment_id AND r.year=2019
+            LEFT JOIN network.catchment_classification n ON n.catchment_id=l.catchment_id
+            WHERE {where} ORDER BY l.catchment_id
+        """, parameters).fetchall()
+    perennial = sum(row["jrc_status"] == 2 for row in rows)
+    nonperennial = sum(row["jrc_status"] == 1 for row in rows)
+    return jsonify({"ids": [row["catchment_id"] for row in rows], "count": len(rows),
+                    "perennial": perennial, "nonperennial": nonperennial,
+                    "unresolved": len(rows) - perennial - nonperennial})
+
+
 def catchment_data(catchment_id):
     with closing(database()) as connection:
         link = connection.execute(
@@ -103,7 +204,7 @@ def catchment_data(catchment_id):
         if link is None:
             return None
         months = [dict(row) for row in connection.execute(
-            "SELECT * FROM monthly_flow_stats WHERE catchment_id = ? "
+            "SELECT f.*, r.min_runoff_mps, r.q25_runoff_mps, r.median_runoff_mps, r.mean_runoff_mps, r.q75_runoff_mps, r.max_runoff_mps, r.mode_runoff_mps FROM monthly_flow_stats f JOIN monthly_runoff r USING (catchment_id, year, month) WHERE catchment_id = ? "
             "ORDER BY year, month", (catchment_id,)
         )]
         geometry = connection.execute(
@@ -112,7 +213,12 @@ def catchment_data(catchment_id):
             "channel_slope_m_per_m "
             "FROM channel_geometry WHERE catchment_id = ?", (catchment_id,)
         ).fetchone()
+        annual_runoff = connection.execute(
+            "SELECT mean_runoff_mps FROM annual_runoff "
+            "WHERE catchment_id = ? AND year = 2019", (catchment_id,)
+        ).fetchone()
     record = dict(link)
+    record["annual_mean_runoff_mps"] = annual_runoff[0] if annual_runoff else None
     with closing(classification_database()) as connection:
         classification = connection.execute(
             "SELECT * FROM catchment_classification WHERE catchment_id = ?", (catchment_id,)
@@ -146,6 +252,7 @@ def catchment_csv(catchment_id):
         "river_width_m", "river_height_m", "river_length_m",
         "catchment_elevation_m", "downstream_elevation_m", "elevation_drop_m",
         "channel_slope_m_per_m",
+        "upstream_area_km2", "annual_mean_runoff_mps", "mean_runoff_mps", "min_runoff_mps", "q25_runoff_mps", "median_runoff_mps", "q75_runoff_mps", "max_runoff_mps", "mode_runoff_mps",
         "sampled_cell_count", "valid_cell_count", "perennial_count", "intermittent_count",
         "connected_path_cells", "year", "month", "days_in_month", "valid_days",
         "min_flow_cms", "q25_flow_cms", "median_flow_cms", "mean_flow_cms",
